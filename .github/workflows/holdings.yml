@@ -1,0 +1,47 @@
+name: Update ETF holdings
+
+# 매일 ETF 보유종목(Top10)·섹터/자산 구성을 Naver에서 수집해 data/holdings.json 갱신.
+# Naver 엔드포인트는 CORS 미지원이라 브라우저에서 직접 못 부르므로, 서버(Actions)에서
+# 미리 받아 같은 도메인 정적 JSON으로 커밋 → 앱은 CORS 없이 fetch 한다.
+
+on:
+  schedule:
+    - cron: '30 21 * * *'   # 매일 06:30 KST (21:30 UTC)
+  workflow_dispatch: {}       # 수동 실행
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/fetch-holdings.js'
+      - '.github/workflows/holdings.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-holdings
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Fetch holdings
+        run: node scripts/fetch-holdings.js
+
+      - name: Commit if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/holdings.json
+          if git diff --staged --quiet; then
+            echo "No changes to commit."
+          else
+            git commit -m "chore: update ETF holdings ($(date -u +%Y-%m-%d))"
+            git push
+          fi

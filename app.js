@@ -15,6 +15,32 @@ const TRADING_DAYS = 252;
 // 순위/표시에 쓰는 변동성 윈도우(거래일 기준)
 const VOL_WINDOWS = { v20: 20, v60: 60, v120: 120, v250: 250 };
 
+// GitHub Actions가 매일 수집해 커밋하는 같은 도메인 보유종목 데이터 (CORS 불필요)
+const HOLDINGS_URL = 'data/holdings.json';
+let holdingsData = null;      // { updatedAt, count, data: { code: {...} } }
+let holdingsPromise = null;
+
+// Naver detailTypeCode → 한글 라벨
+const SECTOR_LABELS = {
+  IT: 'IT', FINANCIALS: '금융', INDUSTRIALS: '산업재', 'HEALTH CARE': '헬스케어', HEALTHCARE: '헬스케어',
+  'CONSUMER DISCRETIONARY': '경기소비재', 'CONSUMER STAPLES': '필수소비재', MATERIALS: '소재',
+  ENERGY: '에너지', UTILITIES: '유틸리티', 'COMMUNICATION SERVICES': '커뮤니케이션',
+  'REAL ESTATE': '부동산', 'REAL_ESTATE': '부동산', TELECOM: '통신', ETC: '기타', OTHERS: '기타', OTHER: '기타',
+};
+const ASSET_LABELS = { EQUITY: '주식', BOND: '채권', CASH: '현금', DERIVATIVES: '파생', REIT: '리츠', COMMODITY: '원자재', OTHERS: '기타', OTHER: '기타', ETF: 'ETF', FUND: '펀드' };
+const COUNTRY_LABELS = { KR: '한국', US: '미국', CN: '중국', JP: '일본', HK: '홍콩', EU: '유럽', VN: '베트남', IN: '인도', TW: '대만', OTHERS: '기타' };
+
+async function loadHoldings() {
+  if (holdingsData) return holdingsData;
+  if (!holdingsPromise) {
+    holdingsPromise = fetch(HOLDINGS_URL)
+      .then(r => (r.ok ? r.json() : null))
+      .then(j => { holdingsData = j; return j; })
+      .catch(() => { holdingsData = null; return null; });
+  }
+  return holdingsPromise;
+}
+
 let analysisResults = [];   // 전체 계산 결과
 let filteredResults = [];   // 검색 필터 적용 결과
 let favorites = loadFavorites();
@@ -485,6 +511,72 @@ function openDetail(isin) {
   $('modalOverlay').classList.add('active');
   document.querySelectorAll('#chartTabs button').forEach(b => b.classList.toggle('active', b.dataset.chart === 'cum'));
   drawChart('cum');
+  renderHoldings(r);
+}
+
+// 보유종목 & 구성 렌더링 (같은 도메인 holdings.json에서 조회)
+async function renderHoldings(r) {
+  const box = $('holdingsSection');
+  box.innerHTML = '<div class="holdings-loading">보유종목 정보를 불러오는 중…</div>';
+  const hd = await loadHoldings();
+  if (!currentDetail || currentDetail.isinCd !== r.isinCd) return; // 그 사이 다른 종목 열림
+  if (!hd || !hd.data) {
+    box.innerHTML = '<div class="holdings-loading">보유종목 데이터를 불러올 수 없습니다. (data/holdings.json 미생성)</div>';
+    return;
+  }
+  const h = hd.data[r.code];
+  if (!h) {
+    box.innerHTML = '<div class="holdings-loading">이 ETF의 보유종목 데이터가 아직 없습니다. (매일 자동 갱신)</div>';
+    return;
+  }
+  const upd = hd.updatedAt ? new Date(hd.updatedAt).toLocaleDateString('ko-KR') : '';
+  const facts = [];
+  if (h.baseIndex) facts.push(`<div class="fact"><span>기초지수</span> <b>${escapeHtml(h.baseIndex)}</b></div>`);
+  if (h.issuer) facts.push(`<div class="fact"><span>운용사</span> <b>${escapeHtml(h.issuer)}</b></div>`);
+  if (h.fee !== null && h.fee !== undefined) facts.push(`<div class="fact"><span>총보수</span> <b>${h.fee}%</b></div>`);
+  if (h.marketValue) facts.push(`<div class="fact"><span>순자산</span> <b>${escapeHtml(h.marketValue)}</b></div>`);
+  if (h.listedDate) facts.push(`<div class="fact"><span>상장일</span> <b>${h.listedDate.replace(/(\d{4})(\d{2})(\d{2})/, '$1.$2.$3')}</b></div>`);
+
+  const top10 = (h.top10 || []).slice(0, 10);
+  const holdRows = top10.length
+    ? top10.map(a => `<tr>
+        <td class="hold-name">${escapeHtml(a.name)}${a.code ? `<span class="hold-code">${a.code}</span>` : ''}</td>
+        <td class="wt">${a.weight === null || a.weight === undefined ? '-' : a.weight.toFixed(2) + '%'}</td>
+      </tr>`).join('')
+    : '<tr><td colspan="2" class="holdings-loading">구성종목 정보 없음</td></tr>';
+
+  const bars = (list, labels) => {
+    const items = (list || []).filter(x => x.weight > 0).slice(0, 6);
+    if (!items.length) return '<div class="holdings-loading">정보 없음</div>';
+    const max = Math.max(...items.map(x => x.weight), 1);
+    return '<div class="bar-wrap">' + items.map(x => {
+      const lbl = labels[x.code] || labels[(x.code || '').toUpperCase()] || x.code;
+      return `<div class="bar-row">
+        <span class="lbl">${escapeHtml(lbl)}</span>
+        <span class="track"><span class="fill" style="width:${Math.max(3, (x.weight / max) * 100)}%"></span></span>
+        <span class="pct">${x.weight.toFixed(1)}%</span>
+      </div>`;
+    }).join('') + '</div>';
+  };
+
+  const hasSector = (h.sectors || []).some(x => x.weight > 0);
+  const breakdownTitle = hasSector ? '섹터 구성' : '자산 구성';
+  const breakdownBars = hasSector ? bars(h.sectors, SECTOR_LABELS) : bars(h.assets, ASSET_LABELS);
+
+  box.innerHTML = `
+    <h4>📦 보유종목 & 구성 <span class="upd">기준 ${upd}</span></h4>
+    ${facts.length ? `<div class="fact-row">${facts.join('')}</div>` : ''}
+    <div class="cols-2">
+      <div>
+        <div style="font-size:13px;color:var(--muted);margin-bottom:6px;">상위 보유종목 (Top ${top10.length})</div>
+        <table class="hold-table">${holdRows}</table>
+      </div>
+      <div>
+        <div style="font-size:13px;color:var(--muted);margin-bottom:6px;">${breakdownTitle}</div>
+        ${breakdownBars}
+        ${hasSector && (h.assets || []).some(x => x.weight > 0) ? `<div style="font-size:13px;color:var(--muted);margin:14px 0 6px;">자산 구성</div>${bars(h.assets, ASSET_LABELS)}` : ''}
+      </div>
+    </div>`;
 }
 
 function closeDetail() {

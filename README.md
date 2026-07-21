@@ -25,8 +25,20 @@
 - **동시성 제한 조회 + 진행률 표시**, 중단 버튼
 - **종목찾기**(결과 내 검색) & **관심종목**(localStorage 저장)
 - **상세 차트**(Chart.js): 누적수익률 / 가격 / 30일 롤링 변동성 / 낙폭(Drawdown)
+- **보유종목 & 구성**: 상세 페이지에 Top10 보유종목·비중, 섹터/자산 구성, 기초지수·운용사·총보수·순자산·상장일 표시
 - **모든 컬럼 정렬**, **CSV 내보내기**
 - 휴장일 기준일 자동 보정(직전 거래일 탐색)
+
+## 보유종목 데이터 (매일 자동 갱신)
+
+보유종목 정보의 유일한 실용 소스인 Naver Finance는 CORS 헤더가 없어 브라우저에서 직접 호출할 수 없습니다.
+그래서 **GitHub Actions**(`.github/workflows/holdings.yml`)가 매일 `scripts/fetch-holdings.js`를 실행해
+전 종목 ETF의 보유종목·구성 정보를 수집하고 `data/holdings.json`으로 커밋합니다.
+앱은 **같은 도메인의 정적 JSON**을 읽으므로 CORS 문제가 없고 백엔드도 필요 없습니다.
+
+- 갱신 주기: 매일 06:30 KST (수동 실행 `workflow_dispatch`도 가능)
+- 보유종목은 원래 실시간으로 바뀌지 않으므로 하루 1회 갱신으로 충분
+- 수동 갱신: `node scripts/fetch-holdings.js` 실행 후 `data/holdings.json` 커밋
 
 ## 서비스 키
 

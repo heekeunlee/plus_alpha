@@ -129,6 +129,27 @@
     .chart-tabs button { background: var(--panel-2); border: 1px solid var(--border); color: var(--muted); font-weight: 600; }
     .chart-tabs button.active { background: var(--accent); color: #04222f; border-color: var(--accent); }
     .chart-box { position: relative; height: 300px; }
+    .holdings-section { margin-top: 18px; border-top: 1px solid var(--border); padding-top: 16px; }
+    .holdings-section h4 { margin: 0 0 10px; font-size: 15px; display: flex; align-items: center; gap: 8px; }
+    .holdings-section h4 .upd { font-size: 11px; color: var(--muted); font-weight: 400; margin-left: auto; }
+    .fact-row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+    .fact { background: var(--panel-2); border: 1px solid var(--border); border-radius: 8px; padding: 6px 11px; font-size: 12px; }
+    .fact b { color: var(--text); }
+    .fact span { color: var(--muted); }
+    .hold-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .hold-table td { padding: 7px 8px; border-bottom: 1px solid rgba(51,65,85,0.5); }
+    .hold-table td.wt { text-align: right; color: var(--accent); font-weight: 600; white-space: nowrap; }
+    .hold-name { color: var(--text); }
+    .hold-code { color: var(--muted); font-size: 11px; margin-left: 6px; }
+    .bar-wrap { margin-top: 4px; }
+    .bar-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; font-size: 12px; }
+    .bar-row .lbl { width: 90px; color: var(--muted); flex-shrink: 0; }
+    .bar-row .track { flex: 1; height: 9px; background: var(--panel-2); border-radius: 999px; overflow: hidden; }
+    .bar-row .fill { height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent-2)); border-radius: 999px; }
+    .bar-row .pct { width: 52px; text-align: right; color: var(--text); }
+    .cols-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+    @media (max-width: 560px) { .cols-2 { grid-template-columns: 1fr; } }
+    .holdings-loading { color: var(--muted); font-size: 13px; padding: 8px 0; }
     footer { text-align: center; color: var(--muted); font-size: 12px; margin-top: 30px; line-height: 1.7; }
     footer a { color: var(--accent); }
     a.link { color: var(--accent); text-decoration: none; }
@@ -276,6 +297,7 @@
         <button data-chart="dd">낙폭(Drawdown)</button>
       </div>
       <div class="chart-box"><canvas id="detailChart"></canvas></div>
+      <div id="holdingsSection" class="holdings-section"></div>
     </div>
   </div>
 
