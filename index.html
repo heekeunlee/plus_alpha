@@ -6,28 +6,61 @@
   <title>🛡️ ETF LowVol Radar — 저변동성 ETF 랭킹</title>
   <meta name="description" content="공공데이터포털 ETF 시세 API로 저변동성 ETF의 변동성·최대낙폭·위험조정수익률을 계산해 순위를 매기는 정적 웹앱." />
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script>
+    // 페이지가 그려지기 전에 저장된 테마를 적용해 깜빡임 방지 (기본: 라이트)
+    (function () {
+      try {
+        var t = localStorage.getItem('lowvol_theme') || 'light';
+        document.documentElement.setAttribute('data-theme', t);
+      } catch (e) { document.documentElement.setAttribute('data-theme', 'light'); }
+    })();
+  </script>
   <style>
+    /* 라이트 모드가 기본 (:root). 다크는 [data-theme="dark"] 오버라이드 */
     :root {
-      --bg: #0f172a;
+      --page-bg: linear-gradient(180deg, #f7f9fc 0%, #eef2f7 100%);
+      --panel: #ffffff;
+      --panel-2: #f1f5f9;
+      --border: #dbe2ea;
+      --divider: #eef1f5;
+      --text: #1e293b;
+      --muted: #64748b;
+      --accent: #0284c7;
+      --btn-text: #ffffff;
+      --accent-2: #059669;
+      --good: #059669;
+      --bad: #dc2626;
+      --warn: #d97706;
+      --up: #e03131;    /* 수익/상승 = 빨강 (한국식) */
+      --down: #1971c2;  /* 손실/하락 = 파랑 (한국식) */
+      --overlay: rgba(15,23,42,0.45);
+      --shadow: 0 4px 18px rgba(15,23,42,0.10);
+    }
+    :root[data-theme="dark"] {
+      --page-bg: linear-gradient(180deg, #0b1220 0%, #0f172a 100%);
       --panel: #1e293b;
       --panel-2: #273449;
       --border: #334155;
+      --divider: rgba(51,65,85,0.5);
       --text: #e2e8f0;
       --muted: #94a3b8;
       --accent: #38bdf8;
+      --btn-text: #04222f;
       --accent-2: #34d399;
       --good: #34d399;
       --bad: #f87171;
       --warn: #fbbf24;
-      --up: #ff5a5a;    /* 수익/상승 = 빨강 (한국식) */
-      --down: #4d90fe;  /* 손실/하락 = 파랑 (한국식) */
+      --up: #ff5a5a;
+      --down: #4d90fe;
+      --overlay: rgba(2,6,23,0.75);
       --shadow: 0 4px 20px rgba(0,0,0,0.35);
     }
     * { box-sizing: border-box; }
     body {
       margin: 0;
       font-family: 'Malgun Gothic', '맑은 고딕', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: linear-gradient(180deg, #0b1220 0%, #0f172a 100%);
+      background: var(--page-bg);
+      background-attachment: fixed;
       color: var(--text);
       line-height: 1.5;
       -webkit-font-smoothing: antialiased;
@@ -57,7 +90,7 @@
     input:focus, select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(56,189,248,0.15); }
     .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
     button {
-      background: var(--accent); color: #04222f; border: none; border-radius: 10px;
+      background: var(--accent); color: var(--btn-text); border: none; border-radius: 10px;
       padding: 11px 20px; font-size: 14px; font-weight: 700; cursor: pointer; transition: filter .15s, transform .05s;
     }
     button:hover { filter: brightness(1.08); }
@@ -85,7 +118,7 @@
     }
     thead th.left, tbody td.left { text-align: left; }
     thead th .arrow { color: var(--accent); font-size: 11px; }
-    tbody td { padding: 10px; text-align: right; border-bottom: 1px solid rgba(51,65,85,0.5); white-space: nowrap; }
+    tbody td { padding: 10px; text-align: right; border-bottom: 1px solid var(--divider); white-space: nowrap; }
     tbody tr { cursor: pointer; transition: background .12s; }
     tbody tr:hover { background: rgba(56,189,248,0.06); }
     tbody tr.fav-row { background: rgba(52,211,153,0.06); }
@@ -112,7 +145,7 @@
     .legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--muted); margin-top: 12px; }
     .legend span b { color: var(--text); }
     .modal-overlay {
-      position: fixed; inset: 0; background: rgba(2,6,23,0.75); display: none; align-items: center; justify-content: center;
+      position: fixed; inset: 0; background: var(--overlay); display: none; align-items: center; justify-content: center;
       z-index: 50; padding: 20px; backdrop-filter: blur(3px);
     }
     .modal-overlay.active { display: flex; }
@@ -129,7 +162,7 @@
     .metric .v { font-size: 18px; font-weight: 700; margin-top: 3px; }
     .chart-tabs { display: flex; gap: 8px; margin: 12px 0; flex-wrap: wrap; }
     .chart-tabs button { background: var(--panel-2); border: 1px solid var(--border); color: var(--muted); font-weight: 600; }
-    .chart-tabs button.active { background: var(--accent); color: #04222f; border-color: var(--accent); }
+    .chart-tabs button.active { background: var(--accent); color: var(--btn-text); border-color: var(--accent); }
     .chart-box { position: relative; height: 300px; }
     .holdings-section { margin-top: 18px; border-top: 1px solid var(--border); padding-top: 16px; }
     .holdings-section h4 { margin: 0 0 10px; font-size: 15px; display: flex; align-items: center; gap: 8px; }
@@ -139,7 +172,7 @@
     .fact b { color: var(--text); }
     .fact span { color: var(--muted); }
     .hold-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-    .hold-table td { padding: 7px 8px; border-bottom: 1px solid rgba(51,65,85,0.5); }
+    .hold-table td { padding: 7px 8px; border-bottom: 1px solid var(--divider); }
     .hold-table td.wt { text-align: right; color: var(--accent); font-weight: 600; white-space: nowrap; }
     .hold-name { color: var(--text); }
     .hold-code { color: var(--muted); font-size: 11px; margin-left: 6px; }
@@ -162,9 +195,16 @@
       header.hero h1 { font-size: 23px; }
       .card { padding: 14px; }
     }
+    .theme-toggle {
+      position: fixed; top: 14px; right: 14px; z-index: 60;
+      background: var(--panel); color: var(--text); border: 1px solid var(--border);
+      border-radius: 999px; padding: 7px 14px; font-size: 13px; font-weight: 600; box-shadow: var(--shadow);
+    }
+    .theme-toggle:hover { border-color: var(--accent); filter: none; }
   </style>
 </head>
 <body>
+  <button id="themeToggle" class="theme-toggle" title="다크/라이트 모드 전환" aria-label="테마 전환">🌙 다크</button>
   <div class="wrap">
     <header class="hero">
       <h1>🛡️ ETF LowVol Radar</h1>

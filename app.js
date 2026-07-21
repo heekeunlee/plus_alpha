@@ -10,6 +10,7 @@
 const BASE_URL = 'https://apis.data.go.kr/1160100/service/GetSecuritiesProductInfoService/getETFPriceInfo';
 const LS_KEY = 'lowvol_apikey';
 const LS_FAV = 'lowvol_favorites';
+const LS_THEME = 'lowvol_theme';
 
 const TRADING_DAYS = 252;
 // 순위/표시에 쓰는 변동성 윈도우(거래일 기준)
@@ -631,16 +632,17 @@ function drawChart(type) {
     yTitle = '%';
   }
 
+  const ct = chartTheme();
   detailChart = new Chart(ctx, {
     type: 'line',
     data: { labels, datasets },
     options: {
       responsive: true, maintainAspectRatio: false,
       interaction: { mode: 'index', intersect: false },
-      plugins: { legend: { labels: { color: '#e2e8f0' } } },
+      plugins: { legend: { labels: { color: ct.legend } } },
       scales: {
-        x: { ticks: { color: '#94a3b8', maxTicksLimit: 10 }, grid: { color: 'rgba(51,65,85,0.4)' } },
-        y: { ticks: { color: '#94a3b8' }, grid: { color: 'rgba(51,65,85,0.4)' }, title: { display: true, text: yTitle, color: '#94a3b8' } },
+        x: { ticks: { color: ct.tick, maxTicksLimit: 10 }, grid: { color: ct.grid } },
+        y: { ticks: { color: ct.tick }, grid: { color: ct.grid }, title: { display: true, text: yTitle, color: ct.tick } },
       },
     },
   });
@@ -684,8 +686,37 @@ function setRunning(on) {
   if (!on) setTimeout(() => $('progressWrap').classList.remove('active'), 600);
 }
 
+/* ---------- 테마(다크/라이트) ---------- */
+function currentTheme() {
+  return document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
+}
+function applyTheme(theme) {
+  document.documentElement.setAttribute('data-theme', theme);
+  try { localStorage.setItem(LS_THEME, theme); } catch { /* ignore */ }
+  const btn = $('themeToggle');
+  if (btn) btn.textContent = theme === 'dark' ? '☀️ 라이트' : '🌙 다크';
+  // 상세 차트가 열려 있으면 테마에 맞게 다시 그린다
+  if (detailChart && currentDetail) {
+    const active = document.querySelector('#chartTabs button.active');
+    drawChart(active ? active.dataset.chart : 'cum');
+  }
+}
+// Chart.js 축/격자/범례 색을 현재 테마에 맞춰 반환
+function chartTheme() {
+  const dark = currentTheme() === 'dark';
+  return {
+    tick: dark ? '#94a3b8' : '#64748b',
+    grid: dark ? 'rgba(51,65,85,0.4)' : 'rgba(100,116,139,0.18)',
+    legend: dark ? '#e2e8f0' : '#1e293b',
+  };
+}
+
 /* ---------- 초기화 ---------- */
 function init() {
+  // 테마: 인라인 스크립트가 이미 data-theme를 설정함(기본 라이트). 버튼 라벨/토글 연결.
+  applyTheme(localStorage.getItem(LS_THEME) === 'dark' ? 'dark' : 'light');
+  $('themeToggle').onclick = () => applyTheme(currentTheme() === 'dark' ? 'light' : 'dark');
+
   const savedKey = localStorage.getItem(LS_KEY);
   if (savedKey) { $('apiKey').value = savedKey; $('keySaved').style.display = 'inline'; }
 
