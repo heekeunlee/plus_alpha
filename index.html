@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>🛡️ ETF LowVol Radar — 저변동성 ETF 랭킹</title>
+  <meta name="description" content="공공데이터포털 ETF 시세 API로 저변동성 ETF의 변동성·최대낙폭·위험조정수익률을 계산해 순위를 매기는 정적 웹앱." />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --panel: #1e293b;
+      --panel-2: #273449;
+      --border: #334155;
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --accent: #38bdf8;
+      --accent-2: #34d399;
+      --good: #34d399;
+      --bad: #f87171;
+      --warn: #fbbf24;
+      --shadow: 0 4px 20px rgba(0,0,0,0.35);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: 'Malgun Gothic', '맑은 고딕', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(180deg, #0b1220 0%, #0f172a 100%);
+      color: var(--text);
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+    }
+    .wrap { max-width: 1280px; margin: 0 auto; padding: 24px 18px 80px; }
+    header.hero { text-align: center; padding: 18px 0 8px; }
+    header.hero h1 { margin: 0; font-size: 30px; letter-spacing: -0.5px; }
+    header.hero p { margin: 8px 0 0; color: var(--muted); font-size: 15px; }
+    .badge {
+      display: inline-block; margin-top: 10px; padding: 4px 12px; border-radius: 999px;
+      background: rgba(56,189,248,0.12); color: var(--accent); font-size: 12px; border: 1px solid rgba(56,189,248,0.3);
+    }
+    .card {
+      background: var(--panel); border: 1px solid var(--border); border-radius: 14px;
+      padding: 18px 20px; margin-top: 18px; box-shadow: var(--shadow);
+    }
+    .card h2 { margin: 0 0 14px; font-size: 17px; display: flex; align-items: center; gap: 8px; }
+    .card h2 .sub { font-size: 12px; color: var(--muted); font-weight: 400; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; }
+    label.field { display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: var(--muted); }
+    label.field span.lbl { color: var(--text); font-weight: 600; }
+    label.field span.hint { font-size: 11px; color: var(--muted); }
+    input, select {
+      background: var(--panel-2); border: 1px solid var(--border); border-radius: 9px;
+      padding: 10px 12px; color: var(--text); font-size: 14px; outline: none; width: 100%;
+    }
+    input:focus, select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(56,189,248,0.15); }
+    .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+    button {
+      background: var(--accent); color: #04222f; border: none; border-radius: 10px;
+      padding: 11px 20px; font-size: 14px; font-weight: 700; cursor: pointer; transition: filter .15s, transform .05s;
+    }
+    button:hover { filter: brightness(1.08); }
+    button:active { transform: translateY(1px); }
+    button:disabled { opacity: .5; cursor: not-allowed; }
+    button.ghost { background: transparent; border: 1px solid var(--border); color: var(--text); }
+    button.ghost:hover { border-color: var(--accent); }
+    button.mini { padding: 4px 9px; font-size: 12px; border-radius: 7px; }
+    .progress-wrap { margin-top: 14px; display: none; }
+    .progress-wrap.active { display: block; }
+    .progress-bar { height: 10px; background: var(--panel-2); border-radius: 999px; overflow: hidden; border: 1px solid var(--border); }
+    .progress-fill { height: 100%; width: 0%; background: linear-gradient(90deg, var(--accent), var(--accent-2)); transition: width .2s; }
+    .progress-text { font-size: 12px; color: var(--muted); margin-top: 7px; }
+    .status { margin-top: 10px; font-size: 13px; }
+    .status.err { color: var(--bad); }
+    .status.ok { color: var(--good); }
+    .toolbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+    .toolbar .search { flex: 1; min-width: 180px; max-width: 340px; }
+    .table-scroll { overflow-x: auto; border-radius: 10px; border: 1px solid var(--border); }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 900px; }
+    thead th {
+      position: sticky; top: 0; background: var(--panel-2); color: var(--text);
+      padding: 11px 10px; text-align: right; font-weight: 700; white-space: nowrap; cursor: pointer; user-select: none;
+      border-bottom: 2px solid var(--border);
+    }
+    thead th.left, tbody td.left { text-align: left; }
+    thead th .arrow { color: var(--accent); font-size: 11px; }
+    tbody td { padding: 10px; text-align: right; border-bottom: 1px solid rgba(51,65,85,0.5); white-space: nowrap; }
+    tbody tr { cursor: pointer; transition: background .12s; }
+    tbody tr:hover { background: rgba(56,189,248,0.06); }
+    tbody tr.fav-row { background: rgba(52,211,153,0.06); }
+    .rank-badge {
+      display: inline-flex; align-items: center; justify-content: center; min-width: 26px; height: 22px;
+      border-radius: 6px; font-weight: 700; font-size: 12px; padding: 0 6px;
+    }
+    .rank-1 { background: #fde68a; color: #78350f; }
+    .rank-2 { background: #e2e8f0; color: #334155; }
+    .rank-3 { background: #fdba74; color: #7c2d12; }
+    .rank-n { background: var(--panel-2); color: var(--muted); }
+    .name-cell { font-weight: 600; }
+    .code { color: var(--muted); font-size: 11px; font-weight: 400; }
+    .tag { display: inline-block; padding: 2px 8px; border-radius: 6px; font-size: 11px; background: var(--panel-2); color: var(--muted); border: 1px solid var(--border); }
+    .pos { color: var(--good); }
+    .neg { color: var(--bad); }
+    .vol-cell { font-weight: 700; }
+    .vol-low { color: var(--good); }
+    .vol-mid { color: var(--warn); }
+    .vol-high { color: var(--bad); }
+    .star { cursor: pointer; font-size: 16px; color: var(--border); }
+    .star.on { color: var(--warn); }
+    .empty { color: var(--muted); text-align: center; padding: 40px 10px; font-size: 14px; }
+    .legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--muted); margin-top: 12px; }
+    .legend span b { color: var(--text); }
+    .modal-overlay {
+      position: fixed; inset: 0; background: rgba(2,6,23,0.75); display: none; align-items: center; justify-content: center;
+      z-index: 50; padding: 20px; backdrop-filter: blur(3px);
+    }
+    .modal-overlay.active { display: flex; }
+    .modal {
+      background: var(--panel); border: 1px solid var(--border); border-radius: 16px; width: 100%; max-width: 760px;
+      max-height: 90vh; overflow-y: auto; box-shadow: var(--shadow); padding: 22px;
+    }
+    .modal-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+    .modal-head h3 { margin: 0; font-size: 20px; }
+    .modal-head .close { background: transparent; color: var(--muted); font-size: 22px; padding: 0 6px; }
+    .metric-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; margin: 16px 0; }
+    .metric { background: var(--panel-2); border: 1px solid var(--border); border-radius: 10px; padding: 12px; }
+    .metric .k { font-size: 11px; color: var(--muted); }
+    .metric .v { font-size: 18px; font-weight: 700; margin-top: 3px; }
+    .chart-tabs { display: flex; gap: 8px; margin: 12px 0; flex-wrap: wrap; }
+    .chart-tabs button { background: var(--panel-2); border: 1px solid var(--border); color: var(--muted); font-weight: 600; }
+    .chart-tabs button.active { background: var(--accent); color: #04222f; border-color: var(--accent); }
+    .chart-box { position: relative; height: 300px; }
+    footer { text-align: center; color: var(--muted); font-size: 12px; margin-top: 30px; line-height: 1.7; }
+    footer a { color: var(--accent); }
+    a.link { color: var(--accent); text-decoration: none; }
+    a.link:hover { text-decoration: underline; }
+    .kv-note { font-size: 12px; color: var(--muted); margin-top: 8px; }
+    .save-ok { color: var(--good); font-size: 12px; margin-left: 8px; }
+    @media (max-width: 640px) {
+      header.hero h1 { font-size: 23px; }
+      .card { padding: 14px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="hero">
+      <h1>🛡️ ETF LowVol Radar</h1>
+      <p>공공데이터포털 ETF 시세로 <b>저변동성 ETF</b>의 변동성·최대낙폭·위험조정수익률을 계산해 순위를 매깁니다.</p>
+      <div class="badge">변동성이 낮을수록 상위 랭크 · 방어형·인컴형 ETF 발굴</div>
+    </header>
+
+    <!-- API KEY -->
+    <section class="card">
+      <h2>🔑 공공데이터포털 서비스 키 <span class="sub">브라우저에만 저장되며 서버로 전송되지 않습니다</span></h2>
+      <div class="row">
+        <input type="password" id="apiKey" placeholder="발급받은 '일반 인증키(Decoding)'를 붙여넣으세요" style="flex:1; min-width:260px;" />
+        <button id="saveKeyBtn" class="ghost">저장</button>
+        <span id="keySaved" class="save-ok" style="display:none;">✓ 저장됨</span>
+      </div>
+      <div class="kv-note">
+        키가 없다면 <a class="link" href="https://www.data.go.kr/data/15094808/openapi.do" target="_blank" rel="noopener">공공데이터포털 → 금융위원회 상장지수펀드(ETF)시세정보</a>에서 활용신청 후 발급받으세요.
+        인코딩 키가 안 되면 <b>디코딩(Decoding) 키</b>를 사용하세요.
+      </div>
+    </section>
+
+    <!-- SETTINGS -->
+    <section class="card">
+      <h2>⚙️ 분석 설정</h2>
+      <div class="grid">
+        <label class="field">
+          <span class="lbl">기준일</span>
+          <input type="date" id="baseDate" />
+          <span class="hint">이 날짜 기준으로 최근 1년 시세를 분석 (휴장일이면 자동으로 직전 거래일 탐색)</span>
+        </label>
+        <label class="field">
+          <span class="lbl">순위 기준 변동성</span>
+          <select id="rankWindow">
+            <option value="v20">1개월 (20일)</option>
+            <option value="v60">3개월 (60일)</option>
+            <option value="v120">6개월 (120일)</option>
+            <option value="v250" selected>1년 (250일)</option>
+          </select>
+          <span class="hint">연율화 변동성이 낮은 순으로 정렬</span>
+        </label>
+        <label class="field">
+          <span class="lbl">최소 거래대금 (억원)</span>
+          <input type="number" id="minTrPrc" value="1" min="0" step="0.5" />
+          <span class="hint">유동성이 낮은 ETF 제외</span>
+        </label>
+        <label class="field">
+          <span class="lbl">최소 시가총액 (억원)</span>
+          <input type="number" id="minMktCap" value="100" min="0" step="10" />
+          <span class="hint">소규모 ETF 제외</span>
+        </label>
+        <label class="field">
+          <span class="lbl">카테고리 필터</span>
+          <select id="catFilter">
+            <option value="all">전체</option>
+            <option value="채권">채권형</option>
+            <option value="배당/인컴">배당/인컴형</option>
+            <option value="리츠/부동산">리츠/부동산</option>
+            <option value="원자재/금">원자재/금</option>
+            <option value="단기/파킹">단기/파킹</option>
+            <option value="주식/기타">주식/기타</option>
+          </select>
+          <span class="hint">이름 기반 자동 분류</span>
+        </label>
+        <label class="field">
+          <span class="lbl">최대 분석 종목 수</span>
+          <input type="number" id="maxCount" value="120" min="10" max="600" step="10" />
+          <span class="hint">시총 상위 N개만 히스토리 조회 (API 호출 절약)</span>
+        </label>
+      </div>
+      <div class="row" style="margin-top:16px;">
+        <button id="runBtn">📊 저변동성 랭킹 분석</button>
+        <button id="stopBtn" class="ghost" style="display:none;">중단</button>
+      </div>
+      <div class="progress-wrap" id="progressWrap">
+        <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+        <div class="progress-text" id="progressText"></div>
+      </div>
+      <div class="status" id="statusMsg"></div>
+    </section>
+
+    <!-- FAVORITES -->
+    <section class="card" id="favCard" style="display:none;">
+      <h2>⭐ 관심종목 <span class="sub" id="favCount"></span></h2>
+      <div class="table-scroll">
+        <table id="favTable"><thead></thead><tbody></tbody></table>
+      </div>
+    </section>
+
+    <!-- RESULTS -->
+    <section class="card">
+      <div class="toolbar">
+        <h2 style="margin:0;">🏆 저변동성 랭킹 <span class="sub" id="resultMeta"></span></h2>
+        <div class="row">
+          <input type="text" id="searchBox" class="search" placeholder="종목명·코드 검색" />
+          <button id="csvBtn" class="ghost mini">CSV 내보내기</button>
+        </div>
+      </div>
+      <div class="table-scroll">
+        <table id="resultTable"><thead></thead><tbody></tbody></table>
+      </div>
+      <div class="empty" id="resultEmpty">위에서 서비스 키를 입력하고 <b>분석</b>을 실행하세요.</div>
+      <div class="legend">
+        <span><b class="vol-low">■</b> 저변동성(≤10%)</span>
+        <span><b class="vol-mid">■</b> 중간(10~20%)</span>
+        <span><b class="vol-high">■</b> 고변동성(&gt;20%)</span>
+        <span>· <b>MDD</b> 최대낙폭 · <b>위험조정</b> = 연수익률 ÷ 연변동성 (높을수록 좋음)</span>
+      </div>
+    </section>
+
+    <footer>
+      데이터: 공공데이터포털 금융위원회 ETF 시세정보 · 브라우저에서 직접 호출<br />
+      본 도구는 정보 제공용이며 투자 권유가 아닙니다. 과거 변동성이 미래를 보장하지 않습니다.<br />
+      🛡️ ETF LowVol Radar · <a href="https://github.com/heekeunlee/plus_alpha" target="_blank" rel="noopener">GitHub</a>
+    </footer>
+  </div>
+
+  <!-- DETAIL MODAL -->
+  <div class="modal-overlay" id="modalOverlay">
+    <div class="modal">
+      <div class="modal-head">
+        <div>
+          <h3 id="modalTitle">종목</h3>
+          <div class="code" id="modalSub"></div>
+        </div>
+        <button class="close" id="modalClose">✕</button>
+      </div>
+      <div class="metric-grid" id="modalMetrics"></div>
+      <div class="chart-tabs" id="chartTabs">
+        <button data-chart="cum" class="active">누적수익률</button>
+        <button data-chart="price">가격/거래량</button>
+        <button data-chart="vol">30일 롤링 변동성</button>
+        <button data-chart="dd">낙폭(Drawdown)</button>
+      </div>
+      <div class="chart-box"><canvas id="detailChart"></canvas></div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
