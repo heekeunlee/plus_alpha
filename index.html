@@ -19,6 +19,8 @@
       --good: #34d399;
       --bad: #f87171;
       --warn: #fbbf24;
+      --up: #ff5a5a;    /* 수익/상승 = 빨강 (한국식) */
+      --down: #4d90fe;  /* 손실/하락 = 파랑 (한국식) */
       --shadow: 0 4px 20px rgba(0,0,0,0.35);
     }
     * { box-sizing: border-box; }
@@ -98,8 +100,8 @@
     .name-cell { font-weight: 600; }
     .code { color: var(--muted); font-size: 11px; font-weight: 400; }
     .tag { display: inline-block; padding: 2px 8px; border-radius: 6px; font-size: 11px; background: var(--panel-2); color: var(--muted); border: 1px solid var(--border); }
-    .pos { color: var(--good); }
-    .neg { color: var(--bad); }
+    .pos { color: var(--up); }
+    .neg { color: var(--down); }
     .vol-cell { font-weight: 700; }
     .vol-low { color: var(--good); }
     .vol-mid { color: var(--warn); }
@@ -265,10 +267,12 @@
       </div>
       <div class="empty" id="resultEmpty">위에서 서비스 키를 입력하고 <b>분석</b>을 실행하세요.</div>
       <div class="legend">
-        <span><b class="vol-low">■</b> 저변동성(≤10%)</span>
+        <span><b class="pos">■</b> 수익</span>
+        <span><b class="neg">■</b> 손실</span>
+        <span>· <b class="vol-low">■</b> 저변동성(≤10%)</span>
         <span><b class="vol-mid">■</b> 중간(10~20%)</span>
         <span><b class="vol-high">■</b> 고변동성(&gt;20%)</span>
-        <span>· <b>MDD</b> 최대낙폭 · <b>위험조정</b> = 연수익률 ÷ 연변동성 (높을수록 좋음)</span>
+        <span>· <b>총보수</b> 연 운용보수 · <b>MDD</b> 최대낙폭 · <b>위험조정</b> = 연수익률 ÷ 연변동성 (높을수록 좋음)</span>
       </div>
     </section>
 

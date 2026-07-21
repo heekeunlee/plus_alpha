@@ -322,11 +322,18 @@ async function runAnalysis() {
 
   if (abortFlag) { setStatus('중단되었습니다.', 'err'); setRunning(false); return; }
 
+  // 총보수(운용보수)는 매일 수집된 보유종목 데이터(같은 도메인)에서 가져온다
+  const hd = await loadHoldings();
+  const feeOf = (code) => {
+    const f = hd?.data?.[code]?.fee;
+    return (f === null || f === undefined) ? null : +f;
+  };
+
   // 순위 기준 변동성이 계산된 종목만
   const rankKey = $('rankWindow').value;
   analysisResults = computed
     .filter(r => r.vols[rankKey] !== null)
-    .map(r => ({ ...r, rankVol: r.vols[rankKey] }));
+    .map(r => ({ ...r, rankVol: r.vols[rankKey], fee: feeOf(r.code) }));
 
   // 변동성 오름차순 랭킹
   analysisResults.sort((a, b) => a.rankVol - b.rankVol);
@@ -357,8 +364,12 @@ const COLS = [
   { key: 'v120', label: '6M변', fmt: r => fmt(r.vols.v120) + '%' },
   { key: 'v250', label: '1Y변', fmt: r => fmt(r.vols.v250) + '%' },
   { key: 'mdd', label: 'MDD', fmt: r => r.mdd === null ? 'N/A' : `<span class="neg">${fmt(r.mdd)}%</span>` },
+  { key: 'ret1m', label: '1개월', fmt: r => pctCell(r.ret1m) },
+  { key: 'ret3m', label: '3개월', fmt: r => pctCell(r.ret3m) },
+  { key: 'ret6m', label: '6개월', fmt: r => pctCell(r.ret6m) },
   { key: 'ret1y', label: '1년수익', fmt: r => pctCell(r.ret1y) },
   { key: 'riskAdj', label: '위험조정', fmt: r => r.riskAdj === null ? 'N/A' : `<span class="${r.riskAdj >= 0 ? 'pos' : 'neg'}">${fmt(r.riskAdj)}</span>` },
+  { key: 'fee', label: '총보수', fmt: r => feeCell(r.fee) },
   { key: 'mktCap', label: '시총(억)', fmt: r => r.mktCap === null ? 'N/A' : fmtInt(r.mktCap / 1e8) },
   { key: 'trPrc', label: '거래대금(억)', fmt: r => r.trPrc === null ? 'N/A' : fmt(r.trPrc / 1e8, 1) },
   { key: 'fav', label: '★', align: 'left', nosort: true },
@@ -374,6 +385,10 @@ function volCell(v) {
   if (v === null || v === undefined) return 'N/A';
   const cls = v <= 10 ? 'vol-low' : v <= 20 ? 'vol-mid' : 'vol-high';
   return `<span class="vol-cell ${cls}">${fmt(v)}%</span>`;
+}
+function feeCell(v) {
+  if (v === null || v === undefined || !Number.isFinite(+v)) return 'N/A';
+  return String(+(+v).toFixed(3)) + '%'; // 0.15% / 0.05% / 0.045% 처럼 불필요한 0 제거
 }
 function rankBadge(rank) {
   const cls = rank === 1 ? 'rank-1' : rank === 2 ? 'rank-2' : rank === 3 ? 'rank-3' : 'rank-n';
@@ -392,7 +407,7 @@ function buildHead(tableId) {
     th.onclick = () => {
       const key = th.dataset.key;
       if (sortState.key === key) sortState.dir = sortState.dir === 'asc' ? 'desc' : 'asc';
-      else sortState = { key, dir: key === 'rankVol' || key === 'rank' ? 'asc' : 'desc' };
+      else sortState = { key, dir: (key === 'rankVol' || key === 'rank' || key === 'fee') ? 'asc' : 'desc' };
       applySearchAndRender();
     };
   });
@@ -598,7 +613,7 @@ function drawChart(type) {
     const base = hist[0].close;
     labels = hist.map(h => labelFmt(h.date));
     const data = hist.map(h => ((h.close - base) / base) * 100);
-    datasets = [{ label: '누적수익률(%)', data, borderColor: '#34d399', backgroundColor: 'rgba(52,211,153,0.12)', fill: true, pointRadius: 0, borderWidth: 2, tension: 0.15 }];
+    datasets = [{ label: '누적수익률(%)', data, borderColor: '#ff5a5a', backgroundColor: 'rgba(255,90,90,0.12)', fill: true, pointRadius: 0, borderWidth: 2, tension: 0.15 }];
     yTitle = '%';
   } else if (type === 'price') {
     labels = hist.map(h => labelFmt(h.date));
@@ -612,7 +627,7 @@ function drawChart(type) {
   } else if (type === 'dd') {
     const dd = drawdownSeries(hist);
     labels = dd.map(x => labelFmt(x.date));
-    datasets = [{ label: '낙폭(%)', data: dd.map(x => x.value), borderColor: '#f87171', backgroundColor: 'rgba(248,113,113,0.15)', fill: true, pointRadius: 0, borderWidth: 2, tension: 0.1 }];
+    datasets = [{ label: '낙폭(%)', data: dd.map(x => x.value), borderColor: '#4d90fe', backgroundColor: 'rgba(77,144,254,0.15)', fill: true, pointRadius: 0, borderWidth: 2, tension: 0.1 }];
     yTitle = '%';
   }
 
@@ -634,11 +649,12 @@ function drawChart(type) {
 /* ---------- CSV ---------- */
 function exportCsv() {
   if (analysisResults.length === 0) { setStatus('내보낼 데이터가 없습니다.', 'err'); return; }
-  const header = ['순위', '종목명', '코드', 'ISIN', '분류', '종가', '등락률(%)',
+  const header = ['순위', '종목명', '코드', 'ISIN', '분류', '종가', '등락률(%)', '총보수(%)',
     '변동성_1M(%)', '변동성_3M(%)', '변동성_6M(%)', '변동성_1Y(%)', 'MDD(%)',
     '수익률_1M(%)', '수익률_3M(%)', '수익률_6M(%)', '수익률_1Y(%)', '위험조정', '시총(억)', '거래대금(억)'];
   const rows = sortResults(filteredResults).map(r => [
     r.rank, r.name, r.code, r.isinCd, r.cat, r.close, r.fltRt,
+    (r.fee === null || r.fee === undefined) ? '' : +(+r.fee).toFixed(3),
     fmt(r.vols.v20), fmt(r.vols.v60), fmt(r.vols.v120), fmt(r.vols.v250), fmt(r.mdd),
     fmt(r.ret1m), fmt(r.ret3m), fmt(r.ret6m), fmt(r.ret1y),
     r.riskAdj === null ? '' : fmt(r.riskAdj),
