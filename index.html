@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>🛡️ ETF LowVol Radar — 저변동성 ETF 랭킹</title>
-  <meta name="description" content="공공데이터포털 ETF 시세 API로 저변동성 ETF의 변동성·최대낙폭·위험조정수익률을 계산해 순위를 매기는 정적 웹앱." />
+  <title>🛡️ ETF Plus Alpha — 저변동성 ETF 분석</title>
+  <meta name="description" content="공공데이터포털 ETF 시세로 저변동성 ETF의 변동성·최대낙폭·위험조정수익률을 계산해 순위를 매기는 정적 웹앱." />
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script>
     // 페이지가 그려지기 전에 저장된 테마를 적용해 깜빡임 방지 (기본: 라이트)
@@ -67,7 +67,13 @@
     }
     .wrap { max-width: 1280px; margin: 0 auto; padding: 24px 18px 80px; }
     header.hero { text-align: center; padding: 18px 0 8px; }
-    header.hero h1 { margin: 0; font-size: 30px; letter-spacing: -0.5px; }
+    header.hero h1 { margin: 0; font-size: 30px; letter-spacing: -0.5px; display: inline-flex; align-items: baseline; gap: 8px; }
+    header.hero h1 .version {
+      font-size: 12px; font-weight: 600; color: var(--muted);
+      background: var(--panel-2); border: 1px solid var(--border);
+      padding: 2px 8px; border-radius: 999px; letter-spacing: 0; align-self: center;
+    }
+    header.hero p.subtitle { margin: 7px 0 0; color: var(--muted); font-size: 13px; }
     header.hero p { margin: 8px 0 0; color: var(--muted); font-size: 15px; }
     .badge {
       display: inline-block; margin-top: 10px; padding: 4px 12px; border-radius: 999px;
@@ -207,8 +213,8 @@
   <button id="themeToggle" class="theme-toggle" title="다크/라이트 모드 전환" aria-label="테마 전환">🌙 다크</button>
   <div class="wrap">
     <header class="hero">
-      <h1>🛡️ ETF LowVol Radar</h1>
-      <p>공공데이터포털 ETF 시세로 <b>저변동성 ETF</b>의 변동성·최대낙폭·위험조정수익률을 계산해 순위를 매깁니다.</p>
+      <h1>🛡️ ETF Plus Alpha <span class="version" id="appVersion">v1.0.0</span></h1>
+      <p class="subtitle">저변동성 ETF 분석 · 변동성 · 최대낙폭 · 위험조정수익률 랭킹</p>
       <div class="badge">변동성이 낮을수록 상위 랭크 · 방어형·인컴형 ETF 발굴</div>
     </header>
 
@@ -319,7 +325,7 @@
     <footer>
       데이터: 공공데이터포털 금융위원회 ETF 시세정보 · 브라우저에서 직접 호출<br />
       본 도구는 정보 제공용이며 투자 권유가 아닙니다. 과거 변동성이 미래를 보장하지 않습니다.<br />
-      🛡️ ETF LowVol Radar · <a href="https://github.com/heekeunlee/plus_alpha" target="_blank" rel="noopener">GitHub</a>
+      🛡️ ETF Plus Alpha <span id="appVersionFooter">v1.0.0</span> · <a href="https://github.com/heekeunlee/plus_alpha" target="_blank" rel="noopener">GitHub</a>
     </footer>
   </div>
 

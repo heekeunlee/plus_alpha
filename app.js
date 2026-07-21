@@ -7,6 +7,7 @@
    변동성이 낮은 순으로 순위를 매긴다. 백엔드 없음, 순수 정적 파일.
    ============================================================ */
 
+const APP_VERSION = 'v1.0.0';   // 앱 버전 (단일 소스)
 const BASE_URL = 'https://apis.data.go.kr/1160100/service/GetSecuritiesProductInfoService/getETFPriceInfo';
 const LS_KEY = 'lowvol_apikey';
 const LS_FAV = 'lowvol_favorites';
@@ -713,6 +714,10 @@ function chartTheme() {
 
 /* ---------- 초기화 ---------- */
 function init() {
+  // 앱 버전 표시 (헤더/푸터)
+  const vEl = $('appVersion'); if (vEl) vEl.textContent = APP_VERSION;
+  const vFt = $('appVersionFooter'); if (vFt) vFt.textContent = APP_VERSION;
+
   // 테마: 인라인 스크립트가 이미 data-theme를 설정함(기본 라이트). 버튼 라벨/토글 연결.
   applyTheme(localStorage.getItem(LS_THEME) === 'dark' ? 'dark' : 'light');
   $('themeToggle').onclick = () => applyTheme(currentTheme() === 'dark' ? 'light' : 'dark');
