@@ -355,16 +355,17 @@ function winLabel(k) {
 }
 
 /* ---------- 렌더링 ---------- */
+// group 'detail'인 컬럼은 '전체' 보기에서만 표시. sticky: 가로 스크롤 시 고정.
 const COLS = [
-  { key: 'rank', label: '순위', align: 'left' },
-  { key: 'name', label: '종목명', align: 'left' },
+  { key: 'rank', label: '순위', align: 'left', sticky: 'sticky-1' },
+  { key: 'name', label: '종목명', align: 'left', sticky: 'sticky-2' },
   { key: 'cat', label: '분류', align: 'left' },
   { key: 'close', label: '종가', fmt: r => fmtInt(r.close) },
   { key: 'fltRt', label: '등락률', fmt: r => pctCell(r.fltRt) },
   { key: 'rankVol', label: '변동성', fmt: r => volCell(r.rankVol), head: () => `변동성(${winLabel($('rankWindow').value)})` },
-  { key: 'v20', label: '1M변', fmt: r => fmt(r.vols.v20) + '%' },
-  { key: 'v120', label: '6M변', fmt: r => fmt(r.vols.v120) + '%' },
-  { key: 'v250', label: '1Y변', fmt: r => fmt(r.vols.v250) + '%' },
+  { key: 'v20', label: '1M변', group: 'detail', fmt: r => fmt(r.vols.v20) + '%' },
+  { key: 'v120', label: '6M변', group: 'detail', fmt: r => fmt(r.vols.v120) + '%' },
+  { key: 'v250', label: '1Y변', group: 'detail', fmt: r => fmt(r.vols.v250) + '%' },
   { key: 'mdd', label: 'MDD', fmt: r => r.mdd === null ? 'N/A' : `<span class="neg">${fmt(r.mdd)}%</span>` },
   { key: 'ret1m', label: '1개월', fmt: r => pctCell(r.ret1m) },
   { key: 'ret3m', label: '3개월', fmt: r => pctCell(r.ret3m) },
@@ -372,10 +373,13 @@ const COLS = [
   { key: 'ret1y', label: '1년수익', fmt: r => pctCell(r.ret1y) },
   { key: 'riskAdj', label: '위험조정', fmt: r => r.riskAdj === null ? 'N/A' : `<span class="${r.riskAdj >= 0 ? 'pos' : 'neg'}">${fmt(r.riskAdj)}</span>` },
   { key: 'fee', label: '총보수', fmt: r => feeCell(r.fee) },
-  { key: 'mktCap', label: '시총(억)', fmt: r => r.mktCap === null ? 'N/A' : fmtInt(r.mktCap / 1e8) },
-  { key: 'trPrc', label: '거래대금(억)', fmt: r => r.trPrc === null ? 'N/A' : fmt(r.trPrc / 1e8, 1) },
+  { key: 'mktCap', label: '시총(억)', group: 'detail', fmt: r => r.mktCap === null ? 'N/A' : fmtInt(r.mktCap / 1e8) },
+  { key: 'trPrc', label: '거래대금(억)', group: 'detail', fmt: r => r.trPrc === null ? 'N/A' : fmt(r.trPrc / 1e8, 1) },
   { key: 'fav', label: '★', align: 'left', nosort: true },
 ];
+let viewMode = 'core'; // 'core' | 'all'
+const visibleCols = () => viewMode === 'all' ? COLS : COLS.filter(c => c.group !== 'detail');
+const cellClass = (c) => `${c.align === 'left' ? 'left' : ''}${c.sticky ? ' sticky-col ' + c.sticky : ''}`.trim();
 
 function pctCell(v) {
   if (v === null || v === undefined || !Number.isFinite(v)) return 'N/A';
@@ -399,10 +403,10 @@ function rankBadge(rank) {
 
 function buildHead(tableId) {
   const thead = document.querySelector(`#${tableId} thead`);
-  thead.innerHTML = '<tr>' + COLS.map(c => {
+  thead.innerHTML = '<tr>' + visibleCols().map(c => {
     const label = c.head ? c.head() : c.label;
     const arrow = (!c.nosort && sortState.key === c.key) ? ` <span class="arrow">${sortState.dir === 'asc' ? '▲' : '▼'}</span>` : '';
-    return `<th class="${c.align === 'left' ? 'left' : ''}" data-key="${c.key}" data-nosort="${c.nosort ? 1 : 0}">${label}${arrow}</th>`;
+    return `<th class="${cellClass(c)}" data-key="${c.key}" data-nosort="${c.nosort ? 1 : 0}">${label}${arrow}</th>`;
   }).join('') + '</tr>';
   thead.querySelectorAll('th').forEach(th => {
     if (th.dataset.nosort === '1') return;
@@ -417,12 +421,13 @@ function buildHead(tableId) {
 
 function rowHtml(r) {
   const isFav = favorites.includes(r.isinCd);
-  const tds = COLS.map(c => {
-    if (c.key === 'rank') return `<td class="left">${rankBadge(r.rank)}</td>`;
-    if (c.key === 'name') return `<td class="left name-cell">${escapeHtml(r.name)}<br><span class="code">${r.code || ''}</span></td>`;
-    if (c.key === 'cat') return `<td class="left"><span class="tag">${r.cat}</span></td>`;
-    if (c.key === 'fav') return `<td class="left"><span class="star ${isFav ? 'on' : ''}" data-fav="${r.isinCd}">${isFav ? '★' : '☆'}</span></td>`;
-    return `<td>${c.fmt ? c.fmt(r) : (r[c.key] ?? 'N/A')}</td>`;
+  const tds = visibleCols().map(c => {
+    const cls = cellClass(c);
+    if (c.key === 'rank') return `<td class="${cls}">${rankBadge(r.rank)}</td>`;
+    if (c.key === 'name') return `<td class="${cls} name-cell">${escapeHtml(r.name)}<br><span class="code">${r.code || ''}</span></td>`;
+    if (c.key === 'cat') return `<td class="${cls}"><span class="tag">${r.cat}</span></td>`;
+    if (c.key === 'fav') return `<td class="${cls}"><span class="star ${isFav ? 'on' : ''}" data-fav="${r.isinCd}">${isFav ? '★' : '☆'}</span></td>`;
+    return `<td class="${cls}">${c.fmt ? c.fmt(r) : (r[c.key] ?? 'N/A')}</td>`;
   }).join('');
   return `<tr data-isin="${r.isinCd}" class="${isFav ? 'fav-row' : ''}">${tds}</tr>`;
 }
@@ -472,11 +477,12 @@ function renderFavorites() {
   if (favorites.length === 0) { card.style.display = 'none'; return; }
   card.style.display = 'block';
   $('favCount').textContent = `${favorites.length}개`;
+  const cols = visibleCols();
   const thead = document.querySelector('#favTable thead');
-  thead.innerHTML = '<tr>' + COLS.map(c => `<th class="${c.align === 'left' ? 'left' : ''}">${c.head ? c.head() : c.label}</th>`).join('') + '</tr>';
+  thead.innerHTML = '<tr>' + cols.map(c => `<th class="${cellClass(c)}">${c.head ? c.head() : c.label}</th>`).join('') + '</tr>';
   const tbody = document.querySelector('#favTable tbody');
   if (favData.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="${COLS.length}" class="empty" style="text-align:center;">관심종목이 이번 분석 결과에 없습니다. 분석을 실행하세요.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="${cols.length}" class="empty" style="text-align:center;">관심종목이 이번 분석 결과에 없습니다. 분석을 실행하세요.</td></tr>`;
     return;
   }
   tbody.innerHTML = favData.map(rowHtml).join('');
@@ -737,6 +743,13 @@ function init() {
   $('stopBtn').onclick = () => { abortFlag = true; setStatus('중단 요청됨…', 'err'); };
   $('searchBox').oninput = applySearchAndRender;
   $('csvBtn').onclick = exportCsv;
+  document.querySelectorAll('#viewToggle button').forEach(b => {
+    b.onclick = () => {
+      viewMode = b.dataset.view;
+      document.querySelectorAll('#viewToggle button').forEach(x => x.classList.toggle('active', x === b));
+      if (analysisResults.length) { applySearchAndRender(); renderFavorites(); }
+    };
+  });
   $('rankWindow').onchange = () => {
     if (analysisResults.length === 0) return;
     const rankKey = $('rankWindow').value;

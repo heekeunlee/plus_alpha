@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>🛡️ ETF Plus Alpha — 저변동성 ETF 분석</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20100%20100'%3E%3Ctext%20x='50'%20y='50'%20font-size='84'%20text-anchor='middle'%20dominant-baseline='central'%3E%F0%9F%9B%A1%EF%B8%8F%3C/text%3E%3C/svg%3E" />
   <meta name="description" content="공공데이터포털 ETF 시세로 저변동성 ETF의 변동성·최대낙폭·위험조정수익률을 계산해 순위를 매기는 정적 웹앱." />
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script>
@@ -34,6 +35,8 @@
       --up: #e03131;    /* 수익/상승 = 빨강 (한국식) */
       --down: #1971c2;  /* 손실/하락 = 파랑 (한국식) */
       --overlay: rgba(15,23,42,0.45);
+      --row-hover: #eaf4fd;   /* 표 행 hover (불투명 — 고정 컬럼용) */
+      --fav-bg: #eafaf1;      /* 관심종목 행 배경 (불투명) */
       --shadow: 0 4px 18px rgba(15,23,42,0.10);
     }
     :root[data-theme="dark"] {
@@ -53,6 +56,8 @@
       --up: #ff5a5a;
       --down: #4d90fe;
       --overlay: rgba(2,6,23,0.75);
+      --row-hover: #22344a;
+      --fav-bg: #1c3330;
       --shadow: 0 4px 20px rgba(0,0,0,0.35);
     }
     * { box-sizing: border-box; }
@@ -115,19 +120,32 @@
     .status.ok { color: var(--good); }
     .toolbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
     .toolbar .search { flex: 1; min-width: 180px; max-width: 340px; }
+    .viewtoggle { display: inline-flex; border: 1px solid var(--border); border-radius: 9px; overflow: hidden; }
+    .viewtoggle button {
+      background: transparent; color: var(--muted); border: none; border-radius: 0;
+      padding: 7px 13px; font-size: 12px; font-weight: 600;
+    }
+    .viewtoggle button.active { background: var(--accent); color: var(--btn-text); }
+    .viewtoggle button:hover:not(.active) { color: var(--text); filter: none; }
     .table-scroll { overflow-x: auto; border-radius: 10px; border: 1px solid var(--border); }
-    table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 900px; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
     thead th {
-      position: sticky; top: 0; background: var(--panel-2); color: var(--text);
-      padding: 11px 10px; text-align: right; font-weight: 700; white-space: nowrap; cursor: pointer; user-select: none;
+      position: sticky; top: 0; background: var(--panel-2); color: var(--text); z-index: 2;
+      padding: 10px 9px; text-align: right; font-weight: 700; white-space: nowrap; cursor: pointer; user-select: none;
       border-bottom: 2px solid var(--border);
     }
     thead th.left, tbody td.left { text-align: left; }
     thead th .arrow { color: var(--accent); font-size: 11px; }
-    tbody td { padding: 10px; text-align: right; border-bottom: 1px solid var(--divider); white-space: nowrap; }
-    tbody tr { cursor: pointer; transition: background .12s; }
-    tbody tr:hover { background: rgba(56,189,248,0.06); }
-    tbody tr.fav-row { background: rgba(52,211,153,0.06); }
+    tbody td { padding: 9px; text-align: right; border-bottom: 1px solid var(--divider); white-space: nowrap; }
+    tbody tr { cursor: pointer; }
+    tbody tr:not(.fav-row) td.sticky-col { background: var(--panel); }
+    tbody tr.fav-row td { background: var(--fav-bg); }
+    tbody tr:hover td { background: var(--row-hover); }
+    /* 순위·종목명 고정(freeze): 가로 스크롤해도 항상 보이게 */
+    th.sticky-col, td.sticky-col { position: sticky; z-index: 1; }
+    thead th.sticky-col { z-index: 3; }
+    th.sticky-1, td.sticky-1 { left: 0; width: 50px; min-width: 50px; }
+    th.sticky-2, td.sticky-2 { left: 50px; min-width: 158px; box-shadow: 7px 0 8px -7px rgba(0,0,0,.25); }
     .rank-badge {
       display: inline-flex; align-items: center; justify-content: center; min-width: 26px; height: 22px;
       border-radius: 6px; font-weight: 700; font-size: 12px; padding: 0 6px;
@@ -304,6 +322,10 @@
       <div class="toolbar">
         <h2 style="margin:0;">🏆 저변동성 랭킹 <span class="sub" id="resultMeta"></span></h2>
         <div class="row">
+          <div class="viewtoggle" id="viewToggle" title="표시할 컬럼 수 선택">
+            <button data-view="core" class="active">핵심</button>
+            <button data-view="all">전체</button>
+          </div>
           <input type="text" id="searchBox" class="search" placeholder="종목명·코드 검색" />
           <button id="csvBtn" class="ghost mini">CSV 내보내기</button>
         </div>
