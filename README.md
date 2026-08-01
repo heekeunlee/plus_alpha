@@ -7,7 +7,6 @@
 
 **라이브**: https://heekeunlee.github.io/plus_alpha/
 
-[ETF MomentoScope](https://jgjeong730.github.io/ETF_Momentum/)(모멘텀 랭킹)와 같은 데이터 파이프라인을 재사용하되,
 "상승 추세"가 아니라 **"흔들림이 적은 방어형·인컴형 ETF"** 를 찾는 데 초점을 맞췄습니다.
 
 ## 핵심 지표

@@ -373,11 +373,11 @@ const COLS = [
   { key: 'ret1y', label: '1년수익', fmt: r => pctCell(r.ret1y) },
   { key: 'riskAdj', label: '위험조정', fmt: r => r.riskAdj === null ? 'N/A' : `<span class="${r.riskAdj >= 0 ? 'pos' : 'neg'}">${fmt(r.riskAdj)}</span>` },
   { key: 'fee', label: '총보수', fmt: r => feeCell(r.fee) },
-  { key: 'mktCap', label: '시총(억)', group: 'detail', fmt: r => r.mktCap === null ? 'N/A' : fmtInt(r.mktCap / 1e8) },
-  { key: 'trPrc', label: '거래대금(억)', group: 'detail', fmt: r => r.trPrc === null ? 'N/A' : fmt(r.trPrc / 1e8, 1) },
+  { key: 'mktCap', label: '시총', group: 'detail', fmt: r => r.mktCap === null ? 'N/A' : fmtInt(r.mktCap / 1e8) },
+  { key: 'trPrc', label: '거래대금', group: 'detail', fmt: r => r.trPrc === null ? 'N/A' : fmt(r.trPrc / 1e8, 1) },
   { key: 'fav', label: '★', align: 'left', nosort: true },
 ];
-let viewMode = 'core'; // 'core' | 'all'
+let viewMode = 'all'; // 'core' | 'all' (기본: 전체)
 const visibleCols = () => viewMode === 'all' ? COLS : COLS.filter(c => c.group !== 'detail');
 const cellClass = (c) => `${c.align === 'left' ? 'left' : ''}${c.sticky ? ' sticky-col ' + c.sticky : ''}`.trim();
 
